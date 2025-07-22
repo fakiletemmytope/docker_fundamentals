@@ -38,9 +38,9 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
 
 3. Write a `docker-compose.yaml` file to:
 
-* Define both the frontend backend and backend services.
+* Define both the frontend, backend and database services.
 * Specify the ports for each service.
-* Set up a shared Docker network to allow communication between the two containers.
+* Set up a shared Docker network to allow communication between the three containers.
 * Set up a volume for the database to ensure data persists when the container stops working
 
 4. Run the Application
