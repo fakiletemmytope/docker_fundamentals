@@ -32,18 +32,27 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
 * **Frontend Dockerfile**
 
   Configures and builds the React app into a production-ready container.
-* **Backend Dockerfil e**
+* **Backend Dockerfile**
 
   Sets up the Node.js server and prepares it to run inside a container.
 
-3. Write a `docker-compose.yaml` file to:
+3. Build and tag the image
+
+   ```bash
+   cd frontend
+   docker buildx build -t <docker-repo>/<image-name> .
+   cd backend
+   docker buildx build -t <docker-repo>/<image-name> .
+   ```
+
+4. Write a `docker-compose.yaml` file to:
 
 * Define both the frontend, backend and database services.
 * Specify the ports for each service.
 * Set up a shared Docker network to allow communication between the three containers.
 * Set up a volume for the database to ensure data persists when the container stops working
 
-4. Run the Application
+5. Run the Application
 
    Docker Compose to build and run the containers
 
