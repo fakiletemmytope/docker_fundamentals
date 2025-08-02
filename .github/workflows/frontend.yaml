@@ -9,6 +9,7 @@ on:
     branches: [dev]
     paths:
       - "frontend/**"
+      - ".github/workflows/**"
 
 env:
   IMAGE_NAME: temmytope/dream-vac-fe
