@@ -1,3 +1,5 @@
+---
+
 name: Backend Continuous Integration Workflow
 
 on:
@@ -11,9 +13,10 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/**"
+  workflow_dispatch:
 
 env:
-  IMAGE_NAME: temmytope/dream-vac-fe
+  IMAGE_NAME: /dream-vac-fe
 
 jobs:
   build:
@@ -37,12 +40,9 @@ jobs:
 
       - name: Show commit SHA
         run: echo ${{ github.sha }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend  # I'm assuming you meant frontend, not backend
           push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME }}:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}${{ env.IMAGE_NAME}}:${{ github.sha }}
