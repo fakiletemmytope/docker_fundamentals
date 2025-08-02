@@ -13,7 +13,7 @@ on:
       - ".github/workflows/**"
 
 env:
-  IMAGE_NAME: dream-vac-fe
+  IMAGE_NAME: temmytope/dream-vac-fe
 
 jobs:
   build:
@@ -43,4 +43,6 @@ jobs:
         with:
           context: ./frontend  # I'm assuming you meant frontend, not backend
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
