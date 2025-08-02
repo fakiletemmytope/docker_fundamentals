@@ -2,11 +2,11 @@ FROM node:24.4-bookworm-slim AS builder
 
 WORKDIR /app
 
-COPY ./package.json /app
+COPY package.json package-lock.json* ./
 
 RUN npm install
 
-COPY . .
+COPY . .  
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 
