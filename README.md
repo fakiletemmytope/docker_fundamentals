@@ -1,10 +1,12 @@
-# Containerize the Dream Vacation App
+# Containerize and Set up CI pipeline for the Dream Vacation App
 
-This project contains the Dockerfile(s) for the frontend and backend of the Dream Vacations application, and orchestrated with Docker Compose for seamless local development and deployment.
+This project contains the Dockerfile(s) for the frontend and backend of the Dream Vacations application, and orchestrated with Docker Compose for seamless local development and deployment. And the workflows for the continuous integration of the backend and frontend application set up
 
 ## Objectives
 
-Containerize the Dream Vacation App using Docker and Docker Compose. By the end of this task, your application should run end-to-end using isolated, reproducible containers.
+1. Containerize the Dream Vacation App using Docker and Docker Compose. By the end of this task, your application should run end-to-end using isolated, reproducible containers.
+
+2. Set up the workflows for the continuous integration of both the backend and the frontend applications.
 
 ### Tech Stack
 
@@ -18,7 +20,8 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
 1. Docker
 2. Docker compose
 
-## Procedure
+
+## Containerization of the frontend and Backend Application
 
 1. Clone the app
 
@@ -26,7 +29,6 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
    git clone https://github.com/your-username/dream-vacations.git
    cd dream-vacations
    ```
-
 2. Write the Dockerfile configuration to build both the frontend and backend docker images
 
 * **Frontend Dockerfile**
@@ -44,7 +46,6 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
    cd backend
    docker buildx build -t <docker-repo>/<image-name> .
    ```
-
 4. Write a `docker-compose.yaml` file to:
 
 * Define both the frontend, backend and database services.
@@ -60,4 +61,4 @@ Containerize the Dream Vacation App using Docker and Docker Compose. By the end 
    docker compose up -d
    ```
 
-This successfully launched the application locally with both services running in isolated, reproducible containers.
+## Continuous Integration Workflow
