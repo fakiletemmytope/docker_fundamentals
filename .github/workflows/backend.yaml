@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: temmytope/dream-vac-be
+  IMAGE_NAME: dream-vac-be
 
 jobs:
   build:
