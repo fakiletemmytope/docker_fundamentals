@@ -1,5 +1,4 @@
 ---
-
 name: Frontend Continuous Integration Workflow
 
 on:
@@ -33,9 +32,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: ./frontend
 
       - name: Run ESLint
         run: npx eslint .
+        working-directory: ./frontend
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -51,9 +52,10 @@ jobs:
 
       - name: Show commit SHA
         run: echo ${{ github.sha }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend  # I'm assuming you meant frontend, not backend
+          context: ./frontend
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
