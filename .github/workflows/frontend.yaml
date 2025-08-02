@@ -7,7 +7,7 @@ on:
     branches: [dev]
     paths:
       - "frontend/**"
-      - ".github/workflows/**"
+      - ".github/workflows/frontend.yaml"
   pull_request:
     branches: [dev]
     paths:
@@ -45,4 +45,4 @@ jobs:
         with:
           context: ./frontend  # I'm assuming you meant frontend, not backend
           push: true
-          tags: temmytope/dream-vac-fe:${{ github.sha }}
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
