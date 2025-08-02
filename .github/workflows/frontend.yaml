@@ -1,6 +1,6 @@
 ---
 
-name: Backend Continuous Integration Workflow
+name: Frontend Continuous Integration Workflow
 
 on:
   push:
@@ -45,4 +45,4 @@ jobs:
         with:
           context: ./frontend  # I'm assuming you meant frontend, not backend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}${{ env.IMAGE_NAME}}:${{ github.sha }}
+          tags: temmytope/dream-vac-fe:${{ github.sha }}
