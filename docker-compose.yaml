@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: temmytope/dream-vacations-fe
+    image: temmytope/dream-vac-fe:latest
     ports:
       - "3000:80"
     environment:
@@ -9,7 +9,7 @@ services:
       - dreamvacations-net
 
   backend:
-    image: temmytope/dream-vacations-be
+    image: temmytope/dream-vac-be
     ports:
       - "3001:3001"
     networks:
