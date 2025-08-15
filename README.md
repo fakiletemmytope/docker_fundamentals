@@ -1,6 +1,8 @@
-# Containerize and Set up CI pipeline for the Dream Vacation App
+# Containerize and Set up CI/CD pipeline for the Dream Vacation App
 
-This project contains the Dockerfile(s) for the frontend and backend of the Dream Vacations application, and orchestrated with Docker Compose for seamless local development and deployment. And the workflows for the continuous integration of the backend and frontend application set up
+This project contains the Dockerfile(s) for the frontend and backend of the Dream Vacations application, and orchestrated with Docker Compose for seamless local development and deployment. And the workflows for the continuous integration of the backend and frontend application set up.
+
+A Continuous Deployment workflow was also added for the deployment of the application to AWS EC2 instance.
 
 ## Objectives
 
@@ -20,7 +22,6 @@ This project contains the Dockerfile(s) for the frontend and backend of the Drea
 1. Docker
 2. Docker compose
 
-
 ## Containerization of the frontend and Backend Application
 
 1. Clone the app
@@ -29,6 +30,7 @@ This project contains the Dockerfile(s) for the frontend and backend of the Drea
    git clone https://github.com/your-username/dream-vacations.git
    cd dream-vacations
    ```
+
 2. Write the Dockerfile configuration to build both the frontend and backend docker images
 
 * **Frontend Dockerfile**
@@ -46,6 +48,7 @@ This project contains the Dockerfile(s) for the frontend and backend of the Drea
    cd backend
    docker buildx build -t <docker-repo>/<image-name> .
    ```
+
 4. Write a `docker-compose.yaml` file to:
 
 * Define both the frontend, backend and database services.
@@ -62,3 +65,57 @@ This project contains the Dockerfile(s) for the frontend and backend of the Drea
    ```
 
 ## Continuous Integration Workflow
+
+## Continuous Deployment Workflow
+
+The workflow uses GitHub Actions to automatically deploy the backend and frontend to an EC2 instance using Docker Compose.
+
+### Overview
+
+This workflow:
+
+a. Runs on push or pull requests to the dev branch (for specific paths).
+
+b. Copies the latest code to the EC2 instance via SCP.
+
+c. Creates a .env file on the EC2 instance with sensitive environment variables.
+
+d. Deploys the updated services using Docker Compose.
+
+### Workflow Trigger Conditions
+
+The deployment is triggered when:
+
+You push to the dev branch and modify:
+
+.github/workflows/backend.yaml
+
+.github/workflows/frontend.yaml
+
+.github/workflows/deploy.yaml
+
+docker-compose.yaml
+
+Any file under backend/**or frontend/**
+
+You open a pull request to dev affecting the same paths.
+
+You manually trigger it via workflow_dispatch in GitHub Actions.
+
+### How It Works
+
+a. Checkout Code
+   Pulls the latest commit from the repository.
+
+b. Uses appleboy actions:
+
+   1. Uses appleboy/scp-action to copy the project to the directory /home/<EC2_USER>/dream-app
+
+   2. Uses appleboy/ssh-action to Create .env on EC2 and deploy the application
+      Writes secrets (DB_USER, DB_PASS) into dierctory /home/<EC2_USER>/dream-app/.env. This environment is used by the docker-compose setup
+
+      Uses Deploy with Docker Compose
+
+      Pulls updated images (if any).
+
+      Builds and runs the containers in detached mode.
