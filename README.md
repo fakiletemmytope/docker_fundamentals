@@ -7,8 +7,9 @@ A Continuous Deployment workflow was also added for the deployment of the applic
 ## Objectives
 
 1. Containerize the Dream Vacation App using Docker and Docker Compose. By the end of this task, your application should run end-to-end using isolated, reproducible containers.
-
 2. Set up the workflows for the continuous integration of both the backend and the frontend applications.
+3. Set up the workflows for the continuous deployment of the application to an EC2 instance using docker compose.
+4. Configure an EC2 instance with the network configuration.
 
 ### Tech Stack
 
@@ -109,13 +110,54 @@ a. Checkout Code
 
 b. Uses appleboy actions:
 
-   1. Uses appleboy/scp-action to copy the project to the directory /home/<EC2_USER>/dream-app
+1. Uses appleboy/scp-action to copy the project to the directory /home/<EC2_USER>/dream-app
+2. Uses appleboy/ssh-action to Create .env on EC2 and deploy the application
+   Writes secrets (DB_USER, DB_PASS) into dierctory /home/<EC2_USER>/dream-app/.env. This environment is used by the docker-compose setup
 
-   2. Uses appleboy/ssh-action to Create .env on EC2 and deploy the application
-      Writes secrets (DB_USER, DB_PASS) into dierctory /home/<EC2_USER>/dream-app/.env. This environment is used by the docker-compose setup
+   Uses Deploy with Docker Compose
 
-      Uses Deploy with Docker Compose
+   Pulls updated images (if any).
 
-      Pulls updated images (if any).
+   Builds and runs the containers in detached mode.
 
-      Builds and runs the containers in detached mode.
+## EC2 Instance and Network Configuration
+
+The ec2 instance and the network requirements were configured using the AWS management console.
+
+### Network Configuration
+
+1. The VPC was configured with the name tag  dream-vpc and CIDR 10.0.0.0/16
+
+   ```html
+   <p align="center">
+     <img src="image/vpc.png" alt="vpc" width="500"/>
+   </p
+   ```
+
+2. A subnet with the name tag dream-subnet in the VPC with CIDR 10.0.1.0/24
+
+   ```html
+   <p align="center">
+     <img src="image/subnet.png" alt="vpc" width="500"/>
+   </p
+   ```
+
+3. An internet gateway (dream-igw) was configured and attached to the dream-vpc.
+
+   ```html
+   <p align="center">
+     <img src="image/igw.png" alt="vpc" width="500"/>
+   </p
+   ```
+
+4. A route-table with the name tag dream-rt was configured and associated with the vpc (dream-vpc) and also with the dream-subnet.
+
+5. A public route with destination 0.0.0.0/0 and target dream-rt was created in the dream-rt. This is to ensure that the subnet associated (dream-subnet) with the dream-rt is made a public subnet.
+
+   ```html
+   <p align="center">
+     <img src="image/rt.png" alt="vpc" width="500"/>
+   </p
+   ```
+
+### EC2 configuration
