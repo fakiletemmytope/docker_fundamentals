@@ -31,7 +31,6 @@ A Continuous Deployment workflow was also added for the deployment of the applic
    git clone https://github.com/your-username/dream-vacations.git
    cd dream-vacations
    ```
-
 2. Write the Dockerfile configuration to build both the frontend and backend docker images
 
 * **Frontend Dockerfile**
@@ -49,7 +48,6 @@ A Continuous Deployment workflow was also added for the deployment of the applic
    cd backend
    docker buildx build -t <docker-repo>/<image-name> .
    ```
-
 4. Write a `docker-compose.yaml` file to:
 
 * Define both the frontend, backend and database services.
@@ -127,37 +125,23 @@ The ec2 instance and the network requirements were configured using the AWS mana
 ### Network Configuration
 
 1. The VPC was configured with the name tag  dream-vpc and CIDR 10.0.0.0/16
-
-   ```html
-   <p align="center">
-     <img src="image/vpc.png" alt="vpc" width="500"/>
-   </p
-   ```
-
+   ![vpc](./image/vpc.png)
 2. A subnet with the name tag dream-subnet in the VPC with CIDR 10.0.1.0/24
-
-   ```html
-   <p align="center">
-     <img src="image/subnet.png" alt="vpc" width="500"/>
-   </p
-   ```
-
+   ![subnet](./image/subnet.png)
 3. An internet gateway (dream-igw) was configured and attached to the dream-vpc.
-
-   ```html
-   <p align="center">
-     <img src="image/igw.png" alt="vpc" width="500"/>
-   </p
-   ```
-
+   ![igw](./image/igw.png)
 4. A route-table with the name tag dream-rt was configured and associated with the vpc (dream-vpc) and also with the dream-subnet.
-
 5. A public route with destination 0.0.0.0/0 and target dream-rt was created in the dream-rt. This is to ensure that the subnet associated (dream-subnet) with the dream-rt is made a public subnet.
-
-   ```html
-   <p align="center">
-     <img src="image/rt.png" alt="vpc" width="500"/>
-   </p
-   ```
+   ![rt](./image/rt.png)
 
 ### EC2 configuration
+
+An ecs instance was configure using the in vpc (dream-vpc) and in the public subnet (dream-subnet).
+A security group with inbound rules that ensures the port 80 and 22 is open for internet and ssh access to the instance is also setup.
+The instance is also configure to ensure a public ip is assigned to it.
+Also a key is attache to the instance which us used by the deployment pipeline and to ssh into the server for the installation of docker.
+![ec2](./image/ec2.png)
+
+### Deployed Dream Vacation APP
+
+![app](./image/app-image.png)
