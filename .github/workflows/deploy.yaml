@@ -1,18 +1,15 @@
----
-name: Continuous Deployment Workflow
+name: Continuous Deployment
 
 on:
   push:
     branches: [dev]
     paths:
       - ".github/workflows/deploy.yaml"
-
   repository_dispatch:
     types:
       - backend-image-pushed
       - frontend-image-pushed
       - terraform-completed
-
   workflow_dispatch:
 
 concurrency:
@@ -26,24 +23,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Terraform outputs (if exist)
-        run: |
-          mkdir -p ./terraform-data
-          if gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name=="terraform-outputs") | .id' | grep -q .; then
-            echo "Terraform artifact exists, downloading..."
-            gh run download-artifact terraform-outputs --dir ./terraform-data
-          else
-            echo "Terraform outputs artifact not found, skipping"
-          fi
+      # ------------------------
+      # Download last Terraform outputs artifact
+      # ------------------------
+      - name: Download Terraform outputs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-outputs
+          path: ./terraform-data
+        continue-on-error: true
 
       - name: Load Terraform outputs
         run: |
           if [ -f ./terraform-data/outputs.env ]; then
             cat ./terraform-data/outputs.env >> $GITHUB_ENV
+            echo "Terraform outputs loaded."
           else
-            echo "Terraform outputs missing, skipping"
+            echo "Terraform outputs missing. Skipping SSH deploy."
+            exit 0
           fi
 
+      # ------------------------
+      # Configure AWS
+      # ------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -51,36 +53,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Copy project files to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.EC2_PUBLIC_IP }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "."
-          target: "/home/${{ secrets.EC2_USER }}/dream-app"
-          strip_components: 0
-
-      - name: Create .env on EC2 and deploy via Docker Compose
+      # ------------------------
+      # Copy project files and deploy
+      # ------------------------
+      - name: Copy project and deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.EC2_PUBLIC_IP }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Create .env
             cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
             DB_USER=${{ secrets.DATABASE_USER }}
             DB_PASS=${{ secrets.DATABASE_PASSWD }}
             EOF
 
             cd /home/${{ secrets.EC2_USER }}/dream-app
-            # Pull backend and frontend images safely
-            docker compose pull || echo "⚠️ Docker pull failed (images may not exist yet)"
-            docker compose up -d --build || echo "⚠️ Docker compose up failed"
+            docker compose pull || echo "Docker pull failed"
+            docker compose up -d --build || echo "Docker compose up failed"
 
       - name: Health check
         run: |
           sleep 30
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "⚠️ Frontend may not ready"
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "⚠️ Backend may not ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Backend may not ready"

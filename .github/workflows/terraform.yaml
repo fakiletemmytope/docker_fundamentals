@@ -1,4 +1,3 @@
----
 name: Terraform CI
 
 on:
@@ -59,7 +58,7 @@ jobs:
           echo "VPC_ID=$(terraform output -raw vpc_id)" >> outputs.env
           echo "SUBNET_ID=$(terraform output -raw subnet_id)" >> outputs.env
 
-      - name: Upload Terraform Outputs
+      - name: Upload Terraform Outputs Artifact
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
