@@ -1,27 +1,13 @@
----
 name: Continuous Deployment Workflow
 
 on:
-  push:
-    branches: [dev]
-    paths:
-      - ".github/workflows/backend.yaml"
-      - ".github/workflows/frontend.yaml"
-      - ".github/workflows/deploy.yaml"
-      - ".github/workflows/deploy.yaml"
-      - "./docker-compose.yaml"
-      - "backend/**"
-      - "frontend/**"
-  pull_request:
-    branches: [dev]
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
-      - ".github/workflows/frontend.yaml"
-      - ".github/workflows/deploy.yaml"
-      - "frontend/**"
-      - ".github/workflows/deploy.yaml"
-      - "./docker-compose.yaml"
+  workflow_run:
+    workflows: 
+      - "Terraform CI"
+      - "Backend Continuous Integration Workflow"
+      - "Frontend Continuous Integration Workflow"
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
@@ -32,6 +18,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Download Terraform outputs (must exist from terraform.yaml)
+    - name: Download Terraform outputs
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-outputs
+        path: ./terraform-data
+
+    - name: Load Terraform outputs into env
+      run: |
+        cat ./terraform-data/* >> $GITHUB_ENV
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -39,29 +36,19 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
 
-    - name: Get Terraform outputs
-      run: |
-        cd terraform
-        terraform init
-        echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
-        echo "EC2_INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> $GITHUB_ENV
-
     - name: Validate infrastructure
       run: |
         if [ -z "${{ env.EC2_PUBLIC_IP }}" ]; then
-          echo "Error: EC2 public IP not found. Ensure Terraform has been applied first."
-          echo "Please run the terraform.yaml workflow before deploying."
+          echo "Error: EC2 public IP not found."
           exit 1
         fi
         echo "EC2 Public IP: ${{ env.EC2_PUBLIC_IP }}"
         echo "EC2 Instance ID: ${{ env.EC2_INSTANCE_ID }}"
 
-    - name: Test EC2 connectivity
+    - name: Test EC2 SSH connectivity
       run: |
-        # Test if the EC2 instance is reachable
-        timeout 30 bash -c 'until ping -c 1 ${{ env.EC2_PUBLIC_IP }}; do sleep 2; done' || {
-          echo "Error: Cannot reach EC2 instance. Check if it's running and accessible."
-          echo "Please ensure the terraform.yaml workflow has completed successfully."
+        timeout 30 bash -c 'until nc -z ${{ env.EC2_PUBLIC_IP }} 22; do sleep 2; done' || {
+          echo "Error: Cannot connect to EC2 over SSH"
           exit 1
         }
 
@@ -82,12 +69,12 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-            cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
-            DB_USER=${{ secrets.DATABASE_USER }}
-            DB_PASS=${{ secrets.DATABASE_PASSWD }}
-            EOF
+          cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
+          DB_USER=${{ secrets.DATABASE_USER }}
+          DB_PASS=${{ secrets.DATABASE_PASSWD }}
+          EOF
 
-    - name: SSH to EC2 and deploy
+    - name: Deploy via Docker Compose
       uses: appleboy/ssh-action@v1.2.0
       with:
         host: ${{ env.EC2_PUBLIC_IP }}
@@ -100,12 +87,6 @@ jobs:
 
     - name: Health check
       run: |
-        # Wait for services to be ready
         sleep 30
-        # Test if the application is responding
-        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || {
-          echo "Warning: Frontend service may not be fully ready"
-        }
-        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || {
-          echo "Warning: Backend service may not be fully ready"
-        }
+        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Warning: Frontend may not be ready"
+        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Warning: Backend may not be ready"
