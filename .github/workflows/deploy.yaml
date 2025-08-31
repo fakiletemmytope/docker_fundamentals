@@ -20,15 +20,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  terraform-and-deploy:
+  terraform:
     runs-on: ubuntu-latest
+    outputs:
+      ec2_public_dns: ${{ steps.save-outputs.outputs.ec2_public_dns }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ------------------------
-      # Terraform
-      # ------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -49,28 +48,50 @@ jobs:
           terraform -chdir=./terraform apply -auto-approve tfplan
 
       - name: Save Terraform outputs
+        id: save-outputs
         run: |
           echo "EC2_PUBLIC_IP=$(terraform -chdir=./terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
           echo "EC2_INSTANCE_ID=$(terraform -chdir=./terraform output -raw ec2_instance_id)" >> $GITHUB_ENV
           echo "VPC_ID=$(terraform -chdir=./terraform output -raw vpc_id)" >> $GITHUB_ENV
           echo "SUBNET_ID=$(terraform -chdir=./terraform output -raw subnet_id)" >> $GITHUB_ENV
           echo "EC2_PUBLIC_DNS=$(terraform -chdir=./terraform output -raw ec2_public_dns)" >> $GITHUB_ENV
+          echo "::set-output name=ec2_public_dns::$(terraform -chdir=./terraform output -raw ec2_public_dns)"
 
-      # ------------------------
-      # Deployment
-      # ------------------------
-      - name: Copy project files to EC2 & deploy
+  deploy:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy project files to EC2
+        uses: appleboy/scp-action@v0.1.9
+        with:
+          host: ${{ needs.terraform.outputs.ec2_public_dns }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "backend/*,frontend/*,docker-compose.yaml" # Only copy relevant folders/files
+          target: "/home/${{ secrets.EC2_USER }}/dream-app"
+
+      - name: Create .env on EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ env.EC2_PUBLIC_DNS }}
+          host: ${{ needs.terraform.outputs.ec2_public_dns }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
+            DB_USER=${{ secrets.DATABASE_USER }}
+            DB_PASS=${{ secrets.DATABASE_PASSWD }}
+            EOF
+
+      - name: SSH to EC2 and deploy Docker
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ needs.terraform.outputs.ec2_public_dns }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/${{ secrets.EC2_USER }}/dream-app
             docker compose pull
             docker compose up -d --build
-
-      - name: Health check
-        run: |
-          sleep 30
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not be ready"
