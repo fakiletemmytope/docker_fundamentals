@@ -25,19 +25,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Download Terraform outputs (if exist)
         run: |
-          echo "Checking if Terraform artifact exists..."
-          gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name=="terraform-outputs") | .id' > artifact_id.txt
-          if [ -s artifact_id.txt ]; then
-            echo "Artifact exists, downloading..."
+          mkdir -p ./terraform-data
+          if gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name=="terraform-outputs") | .id' | grep -q .; then
+            echo "Terraform artifact exists, downloading..."
             gh run download-artifact terraform-outputs --dir ./terraform-data
           else
             echo "Terraform outputs artifact not found, skipping"
           fi
 
-
-      - name: Load Terraform outputs safely
+      - name: Load Terraform outputs
         run: |
           if [ -f ./terraform-data/outputs.env ]; then
             cat ./terraform-data/outputs.env >> $GITHUB_ENV
@@ -69,17 +68,19 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Create .env
             cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
             DB_USER=${{ secrets.DATABASE_USER }}
             DB_PASS=${{ secrets.DATABASE_PASSWD }}
             EOF
 
             cd /home/${{ secrets.EC2_USER }}/dream-app
-            docker compose pull || echo "Docker pull failed"
-            docker compose up -d --build || echo "Docker compose up failed"
+            # Pull backend and frontend images safely
+            docker compose pull || echo "⚠️ Docker pull failed (images may not exist yet)"
+            docker compose up -d --build || echo "⚠️ Docker compose up failed"
 
       - name: Health check
         run: |
           sleep 30
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not be ready"
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Backend may not be ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "⚠️ Frontend may not ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "⚠️ Backend may not ready"
