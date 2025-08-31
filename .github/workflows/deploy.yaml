@@ -25,12 +25,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Download Terraform outputs (if exist)
+        run: |
+          echo "Checking if Terraform artifact exists..."
+          gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name=="terraform-outputs") | .id' > artifact_id.txt
+          if [ -s artifact_id.txt ]; then
+            echo "Artifact exists, downloading..."
+            gh run download-artifact terraform-outputs --dir ./terraform-data
+          else
+            echo "Terraform outputs artifact not found, skipping"
+          fi
 
-      - name: Download Terraform outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-outputs
-          path: ./terraform-data
 
       - name: Load Terraform outputs safely
         run: |
