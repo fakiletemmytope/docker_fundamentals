@@ -34,6 +34,10 @@ output "ec2_public_ip" {
   value       = module.my_instance.public_ip
 }
 
+output "ec2_public_dns" {
+  description = "Public IP address of the EC2 dns"
+  value       = module.my_instance.public_dns
+}
 output "ec2_instance_id" {
   description = "ID of the EC2 instance"
   value       = module.my_instance.instance_id
