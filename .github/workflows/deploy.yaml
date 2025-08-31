@@ -8,6 +8,7 @@ on:
       - ".github/workflows/backend.yaml"
       - ".github/workflows/frontend.yaml"
       - ".github/workflows/deploy.yaml"
+      - ".github/workflows/deploy.yaml"
       - "./docker-compose.yaml"
       - "backend/**"
       - "frontend/**"
@@ -19,13 +20,13 @@ on:
       - ".github/workflows/frontend.yaml"
       - ".github/workflows/deploy.yaml"
       - "frontend/**"
+      - ".github/workflows/deploy.yaml"
       - "./docker-compose.yaml"
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # This ensures this job can run independently but after CI workflows
 
     steps:
     - name: Checkout code

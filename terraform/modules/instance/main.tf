@@ -9,7 +9,6 @@ resource "aws_instance" "ec2" {
   key_name = var.key_name
   associate_public_ip_address = true
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-
   
   user_data = <<-EOF
               #!/bin/bash
