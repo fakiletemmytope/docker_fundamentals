@@ -1,5 +1,4 @@
 ---
-
 name: Continuous Deployment Workflow
 
 on:
@@ -23,29 +22,62 @@ on:
       - "./docker-compose.yaml"
   workflow_dispatch:
 
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # This ensures this job can run independently but after CI workflows
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Get Terraform outputs
+      run: |
+        cd terraform
+        terraform init
+        echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+        echo "EC2_INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> $GITHUB_ENV
+
+    - name: Validate infrastructure
+      run: |
+        if [ -z "${{ env.EC2_PUBLIC_IP }}" ]; then
+          echo "Error: EC2 public IP not found. Ensure Terraform has been applied first."
+          echo "Please run the terraform.yaml workflow before deploying."
+          exit 1
+        fi
+        echo "EC2 Public IP: ${{ env.EC2_PUBLIC_IP }}"
+        echo "EC2 Instance ID: ${{ env.EC2_INSTANCE_ID }}"
+
+    - name: Test EC2 connectivity
+      run: |
+        # Test if the EC2 instance is reachable
+        timeout 30 bash -c 'until ping -c 1 ${{ env.EC2_PUBLIC_IP }}; do sleep 2; done' || {
+          echo "Error: Cannot reach EC2 instance. Check if it's running and accessible."
+          echo "Please ensure the terraform.yaml workflow has completed successfully."
+          exit 1
+        }
 
     - name: Copy project files to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.EC2_HOST }}
+        host: ${{ env.EC2_PUBLIC_IP }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "."
         target: "/home/${{ secrets.EC2_USER }}/dream-app"
+        strip_components: 0
 
     - name: Create .env on EC2
       uses: appleboy/ssh-action@v1.2.0
       with:
-        host: ${{ secrets.EC2_HOST }}
+        host: ${{ env.EC2_PUBLIC_IP }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
@@ -57,10 +89,22 @@ jobs:
     - name: SSH to EC2 and deploy
       uses: appleboy/ssh-action@v1.2.0
       with:
-        host: ${{ secrets.EC2_HOST }}
+        host: ${{ env.EC2_PUBLIC_IP }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd /home/${{ secrets.EC2_USER }}/dream-app
           docker compose pull
           docker compose up -d --build
+
+    - name: Health check
+      run: |
+        # Wait for services to be ready
+        sleep 30
+        # Test if the application is responding
+        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || {
+          echo "Warning: Frontend service may not be fully ready"
+        }
+        timeout 60 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || {
+          echo "Warning: Backend service may not be fully ready"
+        }

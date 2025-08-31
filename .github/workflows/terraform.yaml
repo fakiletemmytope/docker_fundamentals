@@ -1,0 +1,76 @@
+---
+name: Terraform CI
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yaml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yaml"
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Terraform init
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      # Terraform validate
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      # Terraform plan
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -out=tfplan
+
+      # Terraform apply (only on push to dev)
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/dev'
+        working-directory: ./terraform
+        run: terraform apply -auto-approve tfplan
+
+      # Get Terraform outputs
+      - name: Get Terraform Outputs
+        if: github.ref == 'refs/heads/dev'
+        working-directory: ./terraform
+        run: |
+          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+          echo "EC2_INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> $GITHUB_ENV
+          echo "VPC_ID=$(terraform output -raw vpc_id)" >> $GITHUB_ENV
+          echo "SUBNET_ID=$(terraform output -raw subnet_id)" >> $GITHUB_ENV
+
+      # Output values for other workflows
+      - name: Output Infrastructure Details
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          echo "EC2 Public IP: ${{ env.EC2_PUBLIC_IP }}"
+          echo "EC2 Instance ID: ${{ env.EC2_INSTANCE_ID }}"
+          echo "VPC ID: ${{ env.VPC_ID }}"
+          echo "Subnet ID: ${{ env.SUBNET_ID }}"
