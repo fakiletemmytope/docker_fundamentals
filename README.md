@@ -31,6 +31,7 @@ A Continuous Deployment workflow was also added for the deployment of the applic
    git clone https://github.com/your-username/dream-vacations.git
    cd dream-vacations
    ```
+
 2. Write the Dockerfile configuration to build both the frontend and backend docker images
 
 * **Frontend Dockerfile**
@@ -48,6 +49,7 @@ A Continuous Deployment workflow was also added for the deployment of the applic
    cd backend
    docker buildx build -t <docker-repo>/<image-name> .
    ```
+
 4. Write a `docker-compose.yaml` file to:
 
 * Define both the frontend, backend and database services.
@@ -143,5 +145,29 @@ Also a key is attache to the instance which us used by the deployment pipeline a
 ![ec2](./image/ec2.png)
 
 ### Deployed Dream Vacation APP
+
+![app](./image/app-image.png)
+
+## EC2 Instance, Network and Cloud Configuration Using Terraform
+
+Terraform was used to deploy the infrastructure for the ec2, network and cloudwatch and it was added to the CD pipeline.
+
+The images shown below are the outcome of the terraform deployment:
+
+![app](./image/terraform_vpc.png)
+
+![app](./image/terraform_ec2.png)
+
+![app](./image/terraform_cw.png)
+
+The code snippet for the terraform deployment are:
+
+![app](./image/cw_snip.png)
+
+![app](./image/ec2_snip.png)
+
+![app](./image/network_snip.png)
+
+The output of the deployment using terraform is shown below:
 
 ![app](./image/app-image.png)
