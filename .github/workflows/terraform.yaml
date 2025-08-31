@@ -17,57 +17,36 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Terraform Init
-        working-directory: ./terraform
-        run: terraform init
+      - run: terraform -chdir=./terraform init
+      - run: terraform -chdir=./terraform validate
+      - run: terraform -chdir=./terraform plan -out=tfplan
+      - run: terraform -chdir=./terraform apply -auto-approve tfplan
 
-      - name: Terraform Validate
-        working-directory: ./terraform
-        run: terraform validate
-
-      - name: Terraform Plan
-        working-directory: ./terraform
-        run: terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/dev'
-        working-directory: ./terraform
-        run: terraform apply -auto-approve tfplan
-
-      - name: Save Terraform Outputs
-        if: github.ref == 'refs/heads/dev'
-        working-directory: ./terraform
+      - name: Save outputs
         run: |
-          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" > outputs.env
-          echo "EC2_INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> outputs.env
-          echo "VPC_ID=$(terraform output -raw vpc_id)" >> outputs.env
-          echo "SUBNET_ID=$(terraform output -raw subnet_id)" >> outputs.env
+          echo "EC2_PUBLIC_IP=$(terraform -chdir=./terraform output -raw ec2_public_ip)" > ./terraform/outputs.env
+          echo "EC2_INSTANCE_ID=$(terraform -chdir=./terraform output -raw ec2_instance_id)" >> ./terraform/outputs.env
+          echo "VPC_ID=$(terraform -chdir=./terraform output -raw vpc_id)" >> ./terraform/outputs.env
+          echo "SUBNET_ID=$(terraform -chdir=./terraform output -raw subnet_id)" >> ./terraform/outputs.env
 
-      - name: Upload Terraform Outputs Artifact
-        if: github.ref == 'refs/heads/dev'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: terraform-outputs
           path: ./terraform/outputs.env
 
-      - name: Trigger Deployment
-        if: success()
-        uses: peter-evans/repository-dispatch@v3
+      - uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: terraform-completed

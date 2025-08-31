@@ -12,21 +12,13 @@ on:
       - terraform-completed
   workflow_dispatch:
 
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ------------------------
-      # Download last Terraform outputs artifact
-      # ------------------------
-      - name: Download Terraform outputs artifact
+      - name: Download Terraform outputs
         uses: actions/download-artifact@v4
         with:
           name: terraform-outputs
@@ -39,24 +31,17 @@ jobs:
             cat ./terraform-data/outputs.env >> $GITHUB_ENV
             echo "Terraform outputs loaded."
           else
-            echo "Terraform outputs missing. Skipping SSH deploy."
+            echo "Terraform outputs missing. Deploy skipped."
             exit 0
           fi
 
-      # ------------------------
-      # Configure AWS
-      # ------------------------
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # ------------------------
-      # Copy project files and deploy
-      # ------------------------
-      - name: Copy project and deploy
+      - name: Copy files & deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.EC2_PUBLIC_IP }}
@@ -69,11 +54,11 @@ jobs:
             EOF
 
             cd /home/${{ secrets.EC2_USER }}/dream-app
-            docker compose pull || echo "Docker pull failed"
-            docker compose up -d --build || echo "Docker compose up failed"
+            docker compose pull
+            docker compose up -d --build
 
       - name: Health check
         run: |
           sleep 30
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not ready"
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Backend may not ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not be ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Backend may not be ready"
