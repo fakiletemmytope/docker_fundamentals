@@ -1,58 +1,70 @@
-name: Continuous Deployment
+name: Terraform + Deployment
 
 on:
   push:
     branches: [dev]
     paths:
+      - "terraform/**"
       - ".github/workflows/deploy.yaml"
-  repository_dispatch:
-    types:
-      - backend-image-pushed
-      - frontend-image-pushed
-      - terraform-completed
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose.yaml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/**"
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose.yaml"
   workflow_dispatch:
 
 jobs:
-  deploy:
+  terraform-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Download Terraform outputs
-        uses: actions/download-artifact@v4
+      # ------------------------
+      # Terraform
+      # ------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          name: terraform-outputs
-          path: ./terraform-data
-        continue-on-error: true
+          terraform_version: 1.9.0
 
-      - name: Load Terraform outputs
-        run: |
-          if [ -f ./terraform-data/outputs.env ]; then
-            cat ./terraform-data/outputs.env >> $GITHUB_ENV
-            echo "Terraform outputs loaded."
-          else
-            echo "Terraform outputs missing. Deploy skipped."
-            exit 0
-          fi
-
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Copy files & deploy
+      - name: Terraform Init & Apply
+        run: |
+          terraform -chdir=./terraform init
+          terraform -chdir=./terraform validate
+          terraform -chdir=./terraform plan -out=tfplan
+          terraform -chdir=./terraform apply -auto-approve tfplan
+
+      - name: Save Terraform outputs
+        run: |
+          echo "EC2_PUBLIC_IP=$(terraform -chdir=./terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+          echo "EC2_INSTANCE_ID=$(terraform -chdir=./terraform output -raw ec2_instance_id)" >> $GITHUB_ENV
+          echo "VPC_ID=$(terraform -chdir=./terraform output -raw vpc_id)" >> $GITHUB_ENV
+          echo "SUBNET_ID=$(terraform -chdir=./terraform output -raw subnet_id)" >> $GITHUB_ENV
+
+      # ------------------------
+      # Deployment
+      # ------------------------
+      - name: Copy project files to EC2 & deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.EC2_PUBLIC_IP }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cat <<EOF > /home/${{ secrets.EC2_USER }}/dream-app/.env
-            DB_USER=${{ secrets.DATABASE_USER }}
-            DB_PASS=${{ secrets.DATABASE_PASSWD }}
-            EOF
-
             cd /home/${{ secrets.EC2_USER }}/dream-app
             docker compose pull
             docker compose up -d --build
@@ -60,5 +72,5 @@ jobs:
       - name: Health check
         run: |
           sleep 30
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "Frontend may not be ready"
-          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "Backend may not be ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:80; do sleep 5; done' || echo "⚠️ Frontend may not be ready"
+          timeout 120 bash -c 'until curl -f http://${{ env.EC2_PUBLIC_IP }}:3001; do sleep 5; done' || echo "⚠️ Backend may not be ready"

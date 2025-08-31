@@ -41,9 +41,3 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
-
-      - uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          event-type: frontend-image-pushed
-          client-payload: '{"image":"frontend","sha":"${{ github.sha }}"}'
