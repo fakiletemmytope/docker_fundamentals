@@ -1,6 +1,11 @@
 name: Continuous Deployment Workflow
 
 on:
+  push:
+    branches: [dev]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/deploy.yaml"
   workflow_run:
     workflows: 
       - "Terraform CI"
