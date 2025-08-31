@@ -74,3 +74,21 @@ jobs:
           echo "EC2 Instance ID: ${{ env.EC2_INSTANCE_ID }}"
           echo "VPC ID: ${{ env.VPC_ID }}"
           echo "Subnet ID: ${{ env.SUBNET_ID }}"
+
+            # Save Terraform outputs to file
+      - name: Save Terraform Outputs
+        if: github.ref == 'refs/heads/dev'
+        working-directory: ./terraform
+        run: |
+          echo "EC2_PUBLIC_IP=${{ env.EC2_PUBLIC_IP }}" > terraform-outputs.env
+          echo "EC2_INSTANCE_ID=${{ env.EC2_INSTANCE_ID }}" >> terraform-outputs.env
+          echo "VPC_ID=${{ env.VPC_ID }}" >> terraform-outputs.env
+          echo "SUBNET_ID=${{ env.SUBNET_ID }}" >> terraform-outputs.env
+
+      # Upload as artifact so deploy.yaml can fetch
+      - name: Upload Terraform Outputs
+        if: github.ref == 'refs/heads/dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: ./terraform/terraform-outputs.env
